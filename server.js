@@ -18,6 +18,7 @@ function actor(req){return req.session.user||null}
 function audit(req,action,entity,entityId,details=''){const u=actor(req); if(!u)return; store.activities.push({id:next('activities'),user_id:u.id,user_name:u.name,action,entity,entity_id:entityId,details,created_at:now()}); if(store.activities.length>10000)store.activities=store.activities.slice(-10000); save()}
 app.use(express.json({limit:'10mb'}));
 app.use(express.urlencoded({extended:true}));
+app.set('trust proxy', 1);
 app.use(session({secret:process.env.SESSION_SECRET||'change-this-secret',resave:false,saveUninitialized:false,cookie:{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:1000*60*60*24*14}}));
 function auth(req,res,next){if(!req.session.user)return res.status(401).json({error:'AUTH_REQUIRED'});next()}
 function admin(req,res,next){if(req.session.user?.role!=='admin')return res.status(403).json({error:'ADMIN_REQUIRED'});next()}
