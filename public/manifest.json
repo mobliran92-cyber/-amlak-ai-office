@@ -1,0 +1,10 @@
+{
+  "name": "دفتر املاک هوشمند",
+  "short_name": "املاک",
+  "start_url": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "fa",
+  "theme_color": "#b9944a",
+  "background_color": "#0d0e10"
+}
