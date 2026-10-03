@@ -8,7 +8,8 @@ const multer=require('multer');
 const sharp=require('sharp');
 const {S3Client,PutObjectCommand,DeleteObjectCommand}=require('@aws-sdk/client-s3');
 const {createRouter: createAgentRouter,startMissionWorker}=require('./agents');
-const {ensureFoundation}=require('./foundation');
+const {ensureFoundation,userTier,hasTier,requireTier}=require('./foundation');
+const {SERVICES}=require('./service-catalog');
 
 const app=express();
 const PORT=Number(process.env.PORT||10000);
@@ -128,7 +129,7 @@ app.post('/api/login',async(req,res)=>{
   else if(!password||!bcrypt.compareSync(password,u.password_hash))return res.status(401).json({error:'رمز عبور اشتباه است'});
   const sub=(await pool.query('SELECT tier,status,current_period_end FROM subscriptions WHERE user_id=$1',[u.id])).rows[0];
   const tier=u.role==='admin'?'enterprise':(sub?.status==='active'?sub.tier:'free');
-  req.session.user={id:u.id,name:u.name,email:u.email,role:u.role,subscription_tier:tier};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
+  req.session.user={id:u.id,name:u.name,email:u.email,role:u.role,subscription_tier:tier,account_type:sub?.account_type||'consumer'};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
 });
 app.post('/api/logout',async(req,res)=>{const u=req.session.user;req.session.destroy(async()=>{if(u){store.activities.push({id:next('activities'),user_id:u.id,user_name:u.name,action:'logout',entity:'session',entity_id:u.id,details:'خروج',created_at:now()});await persist()}res.json({ok:true})})});
 app.get('/api/me',auth,(req,res)=>res.json(req.session.user));
@@ -209,6 +210,15 @@ app.get('/api/backup',admin,(req,res)=>{res.setHeader('Content-Disposition',`att
 app.post('/api/restore',admin,async(req,res)=>{const d=req.body;if(!d||!Array.isArray(d.staff)||!Array.isArray(d.properties)||!Array.isArray(d.clients)||!Array.isArray(d.followups))return res.status(400).json({error:'پشتیبان نامعتبر است'});await backup('pre-restore');store=migrate(d);await persist();res.json({ok:true,version:SCHEMA_VERSION})});
 app.get('/api/share',admin,(req,res)=>{const host=`${req.protocol}://${req.get('host')}`;res.json({url:host,login_url:`${host}/#login`,note:'دسترسی فقط با حساب فعال سیستم ممکن است.'})});
 
+app.get('/api/plans',(req,res)=>res.json([
+  {id:'free',name:'Free',rank:0,for:['consumer'],features:['جست‌وجوی پایه','مدیریت ملک','CRM پایه','رسانه پایه']},
+  {id:'plus',name:'Plus',rank:1,for:['consumer','agent'],features:['مشاور AI','هوش ملک','محتوا','تور مجازی','طراحی AI']},
+  {id:'pro',name:'Pro',rank:2,for:['agent','investor','developer'],features:['مرکز فرمان','Agentها','Lead Scout','ساخت','سرمایه‌گذاری','بازار','CRM هوشمند']},
+  {id:'office',name:'Office',rank:3,for:['office'],features:['چندکاربره','قرارداد','معاملات','امنیت','Developer/API']},
+  {id:'enterprise',name:'Enterprise',rank:4,for:['office','developer'],features:['حاکمیت AI','Self-Healing','داده جهانی','Digital Twin','اتصال سازمانی']}
+]));
+app.get('/api/account',auth,async(req,res)=>{const s=(await pool.query('SELECT tier,status,account_type,current_period_end FROM subscriptions WHERE user_id=$1',[req.session.user.id])).rows[0]||{tier:'free',status:'active',account_type:'consumer'};res.json({...s,role:req.session.user.role,services:SERVICES.filter(x=>hasTier(s.tier,x.tier))})});
+app.patch('/api/account',auth,async(req,res)=>{const types=['consumer','agent','office','developer','investor','owner','tenant'];const account_type=String(req.body?.account_type||'consumer');if(!types.includes(account_type))return res.status(400).json({error:'ACCOUNT_TYPE_INVALID'});await pool.query('INSERT INTO subscriptions(user_id,tier,account_type,status,updated_at) VALUES($1,$2,$3,$4,now()) ON CONFLICT(user_id) DO UPDATE SET account_type=EXCLUDED.account_type,updated_at=now()',[req.session.user.id,userTier(req.session.user),account_type,'active']);req.session.user.account_type=account_type;res.json({ok:true,account_type})});
 app.get('/api/services',auth,async(req,res)=>{const r=await pool.query('SELECT * FROM service_catalog WHERE enabled=true ORDER BY id');res.json(r.rows)});
 app.patch('/api/services/:id',admin,async(req,res)=>{const id=String(req.params.id),enabled=req.body?.enabled;if(typeof enabled!=='boolean')return res.status(400).json({error:'ENABLED_BOOLEAN_REQUIRED'});const r=await pool.query('UPDATE service_catalog SET enabled=$2,updated_at=now() WHERE id=$1 RETURNING *',[id,enabled]);if(!r.rows[0])return res.status(404).json({error:'SERVICE_NOT_FOUND'});res.json(r.rows[0])});
 app.delete('/api/services/:id',admin,async(req,res)=>{const r=await pool.query('UPDATE service_catalog SET enabled=false,updated_at=now() WHERE id=$1 RETURNING id',[String(req.params.id)]);if(!r.rows[0])return res.status(404).json({error:'SERVICE_NOT_FOUND'});res.json({ok:true,id:r.rows[0].id,disabled:true})});
