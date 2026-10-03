@@ -11,6 +11,7 @@ const {createRouter: createAgentRouter,startMissionWorker}=require('./agents');
 const {ensureFoundation,userTier,hasTier,requireTier}=require('./foundation');
 const {SERVICES}=require('./service-catalog');
 const {createMediaRouter}=require('./media-studio');
+const {runMaintenance,startMaintenanceAgent}=require('./maintenance-agent');
 
 const app=express();
 const PORT=Number(process.env.PORT||10000);
@@ -117,6 +118,7 @@ async function init(){
     await persist();
   }
 }
+app.get('/api/maintenance/run',auth,async(req,res)=>{if(req.session.user?.role!=='admin')return res.status(403).json({error:'ADMIN_REQUIRED'});res.json(await runMaintenance(pool))});
 app.get('/api/health',async(req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,version:SCHEMA_VERSION,storage:'postgres',time:now()})}catch(e){res.status(500).json({ok:false,error:'DB_UNAVAILABLE'})}});
 app.get('/api/property-types',(req,res)=>res.json(PROPERTY_TYPES));
 
@@ -230,4 +232,4 @@ app.use('/api/media-studio',auth,createMediaRouter({pool}));
 
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public/index.html')));
-(async()=>{try{await ensureTables();store=await load();await init();app.listen(PORT,'0.0.0.0',()=>{startMissionWorker(pool);console.log(`Amlak AI Office v${SCHEMA_VERSION} running on ${PORT}`)})}catch(e){console.error(e);process.exit(1)}})();
+(async()=>{try{await ensureTables();store=await load();await init();app.listen(PORT,'0.0.0.0',()=>{startMissionWorker(pool);startMaintenanceAgent(pool);console.log(`Amlak AI Office v${SCHEMA_VERSION} running on ${PORT}`)})}catch(e){console.error(e);process.exit(1)}})();
