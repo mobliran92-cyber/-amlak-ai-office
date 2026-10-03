@@ -7,7 +7,7 @@ const {Pool}=require('pg');
 const multer=require('multer');
 const sharp=require('sharp');
 const {S3Client,PutObjectCommand,DeleteObjectCommand}=require('@aws-sdk/client-s3');
-const {createRouter: createAgentRouter}=require('./agents');
+const {createRouter: createAgentRouter,startMissionWorker}=require('./agents');
 const {ensureFoundation}=require('./foundation');
 
 const app=express();
@@ -215,4 +215,4 @@ app.use('/api/agents',auth,createAgentRouter({pool,isAdmin:(req)=>req.session.us
 
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public/index.html')));
-(async()=>{try{await ensureTables();store=await load();await init();app.listen(PORT,'0.0.0.0',()=>console.log(`Amlak AI Office v${SCHEMA_VERSION} running on ${PORT}`))}catch(e){console.error(e);process.exit(1)}})();
+(async()=>{try{await ensureTables();store=await load();await init();app.listen(PORT,'0.0.0.0',()=>{startMissionWorker(pool);console.log(`Amlak AI Office v${SCHEMA_VERSION} running on ${PORT}`)})}catch(e){console.error(e);process.exit(1)}})();
