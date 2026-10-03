@@ -1,12 +1,13 @@
 const crypto=require('crypto');
 
-const TIERS={FREE:'free',PRO:'pro',OFFICE:'office',ENTERPRISE:'enterprise'};
-const TIER_RANK={free:0,pro:1,office:2,enterprise:3};
+const TIERS={FREE:'free',PLUS:'plus',PRO:'pro',OFFICE:'office',ENTERPRISE:'enterprise'};
+const TIER_RANK={free:0,plus:1,pro:2,office:3,enterprise:4};
 
 async function ensureFoundation(pool){
   await pool.query(`CREATE TABLE IF NOT EXISTS subscriptions(
     user_id BIGINT PRIMARY KEY,
     tier TEXT NOT NULL DEFAULT 'free',
+    account_type TEXT NOT NULL DEFAULT 'consumer',
     status TEXT NOT NULL DEFAULT 'active',
     provider TEXT,
     external_id TEXT,
@@ -14,6 +15,7 @@ async function ensureFoundation(pool){
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`);
+  await pool.query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'consumer'");
   await pool.query(`CREATE TABLE IF NOT EXISTS missions(
     id UUID PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -70,6 +72,24 @@ async function ensureFoundation(pool){
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_queue ON mission_tasks(status,priority DESC,created_at ASC)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_mission ON mission_tasks(mission_id,created_at)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_events_mission ON mission_events(mission_id,created_at DESC)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS media_assets(
+    id UUID PRIMARY KEY,property_id BIGINT NOT NULL,user_id BIGINT,source_media_id TEXT,kind TEXT NOT NULL,
+    original_url TEXT,processed_url TEXT,thumbnail_url TEXT,metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    provenance JSONB NOT NULL DEFAULT '{}'::jsonb,status TEXT NOT NULL DEFAULT 'ready',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS media_jobs(
+    id UUID PRIMARY KEY,property_id BIGINT NOT NULL,user_id BIGINT,media_asset_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    job_type TEXT NOT NULL,params JSONB NOT NULL DEFAULT '{}'::jsonb,status TEXT NOT NULL DEFAULT 'queued',
+    result JSONB,error TEXT,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),started_at TIMESTAMPTZ,finished_at TIMESTAMPTZ)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS virtual_tours(
+    id UUID PRIMARY KEY,property_id BIGINT NOT NULL,user_id BIGINT,name TEXT NOT NULL DEFAULT 'تور مجازی',
+    engine TEXT NOT NULL DEFAULT 'internal',status TEXT NOT NULL DEFAULT 'draft',cover_media_id TEXT,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,result JSONB,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS design_scenarios(
+    id UUID PRIMARY KEY,property_id BIGINT NOT NULL,user_id BIGINT,name TEXT NOT NULL,
+    source_media_id TEXT,room_type TEXT,style TEXT,materials JSONB NOT NULL DEFAULT '{}'::jsonb,
+    prompt TEXT,disclaimer TEXT NOT NULL DEFAULT 'تصویرسازی AI است و وضعیت واقعی ملک را تغییر نمی‌دهد.',
+    status TEXT NOT NULL DEFAULT 'draft',result JSONB,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   await pool.query(`CREATE TABLE IF NOT EXISTS service_catalog(
     id TEXT PRIMARY KEY,name TEXT NOT NULL,required_tier TEXT NOT NULL DEFAULT 'free',enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
