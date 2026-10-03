@@ -5,6 +5,14 @@
   "display": "standalone",
   "dir": "rtl",
   "lang": "fa",
-  "theme_color": "#b9944a",
-  "background_color": "#0d0e10"
+  "theme_color": "#15946b",
+  "background_color": "#f3faf7",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
