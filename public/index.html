@@ -127,6 +127,21 @@ async function runClientMatch(){const id=$('mc').value;if(!id)return toast('یک
 async function runPropertyMatch(){const id=$('mp').value;if(!id)return toast('یک ملک انتخاب کنید');try{const r=await api('/api/property-matches/'+id);renderMatch(r,'c')}catch(e){toast(e.message)}}
 function renderMatch(list,kind){$('matchResults').innerHTML=`<div class="grid cards">${list.map(x=>{const price=x.price||x.deposit||x.rent;const label=kind==='p'?(x.title||x.property_subtype||'ملک #'+x.id):x.name;const sub=kind==='p'?(x.city||'')+' '+(x.neighborhood||''):(x.purpose||'')+(x.phone?' · '+x.phone:'');return `<div class="card"><div class="toolbar"><h2 style="margin:0">${esc(label)}</h2><span class="pill gold" style="margin-right:auto">امتیاز تطابق ${x.score}%</span></div><p class="muted">${esc(sub)}</p>${price?`<p class="gold">${fmtPrice(price)}</p>`:''}${x.why?.length?`<p class="muted">دلایل تطابق: ${x.why.join('، ')}</p>`:''}${kind==='p'?`<button class="btn dark" onclick="detail(${x.id})">مشاهده ملک</button>`:''}</div>`}).join('')||'<p class="muted">نتیجه‌ای پیدا نشد.</p>'}</div>`}
 boot();
+async function services(){
+  lastList=services;active('services');
+  try{
+    const a=await api('/api/account'),plans=await api('/api/plans');
+    const labels={consumer:'خریدار / مصرف‌کننده',agent:'مشاور املاک',office:'دفتر / مجموعه',developer:'سازنده / دولوپر',investor:'سرمایه‌گذار',owner:'مالک',tenant:'مستأجر'};
+    const icons=['⌂','⌕','✦','◇','▦','◎','◌','▣'];
+    $('view').innerHTML=\`<div class="toolbar"><h1 style="margin-left:auto">خدمات AMLAK AI OFFICE</h1><span class="tier-pill">\${esc(a.tier||'free').toUpperCase()}</span></div>
+    <div class="role-banner"><h2 style="margin:0 0 8px">فضای کاری شما</h2><p class="muted">\${esc(labels[a.account_type]||'کاربر')}</p>
+    <div class="toolbar"><select id="accountType" style="max-width:280px"><option value="consumer">خریدار / مصرف‌کننده</option><option value="agent">مشاور املاک</option><option value="office">دفتر / مجموعه</option><option value="developer">سازنده / دولوپر</option><option value="investor">سرمایه‌گذار</option><option value="owner">مالک</option><option value="tenant">مستأجر</option></select><button class="btn" onclick="saveAccountType()">ذخیره</button></div></div>
+    <h2 style="margin-top:24px">پکیج‌ها</h2><div class="service-grid">\${plans.map(p=>\`<div class="service-card"><div class="svc-icon">✦</div><h2>\${esc(p.name)}</h2><p class="muted">\${p.features.join(' · ')}</p><span class="tier-pill">سطح \${p.rank}</span></div>\`).join('')}</div>
+    <h2 style="margin-top:24px">خدمات فعال شما</h2><div class="service-grid">\${(a.services||[]).map((s,i)=>\`<div class="service-card"><div class="svc-icon">\${icons[i%icons.length]}</div><h2>\${esc(s.title)}</h2><span class="tier-pill">\${esc(s.tier)}</span><p class="muted">\${esc(s.group)}</p><div>\${(s.actions||[]).slice(0,6).map(x=>\`<span class="pill">\${esc(x)}</span>\`).join('')}</div></div>\`).join('')}</div>\`;
+    $('accountType').value=a.account_type||'consumer';
+  }catch(e){toast(e.message)}
+}
+async function saveAccountType(){try{await api('/api/account',{method:'PATCH',body:JSON.stringify({account_type:$('accountType').value})});me.account_type=$('accountType').value;toast('نقش کاری ذخیره شد');services()}catch(e){toast(e.message)}}
 </script>
 <script src="/office-center.js"></script>
 </body></html>
