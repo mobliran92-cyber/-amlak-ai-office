@@ -59,7 +59,7 @@ function createRouter(opts){
       await client.query('COMMIT');
     }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
     emit(pool,id,null,'mission.created',{agent:task.agent,action:task.action});
-    await runMission(pool,id);
+    setImmediate(()=>runMission(pool,id).catch(e=>console.error('mission worker error',e)));
     res.status(202).json({mission_id:id,status:'running',agent:task.agent,action:task.action,plan:planned});
   });
   router.post('/missions/:id/cancel',async(req,res)=>{const m=(await pool.query('SELECT * FROM missions WHERE id=$1',[req.params.id])).rows[0];if(!m)return res.status(404).json({error:'MISSION_NOT_FOUND'});if(!isAdmin(req)&&Number(m.user_id)!==Number(req.session.user.id))return res.status(403).json({error:'FORBIDDEN'});await pool.query("UPDATE missions SET status='cancelled',finished_at=now(),updated_at=now() WHERE id=$1 AND status NOT IN ('finished','failed','cancelled')",[m.id]);await pool.query("UPDATE mission_tasks SET status='cancelled',updated_at=now() WHERE mission_id=$1 AND status IN ('queued','running')",[m.id]);await emit(pool,m.id,null,'mission.cancelled');res.json({ok:true,status:'cancelled'})});
@@ -67,8 +67,21 @@ function createRouter(opts){
   router.post('/jobs/:id/cancel',async(req,res)=>{const r=await pool.query('SELECT * FROM agent_jobs WHERE id=$1',[req.params.id]),j=r.rows[0];if(!j)return res.status(404).json({error:'AGENT_JOB_NOT_FOUND'});if(!isAdmin(req)&&Number(j.user_id)!==Number(req.session.user.id))return res.status(403).json({error:'FORBIDDEN'});await pool.query("UPDATE agent_jobs SET status='cancelled',finished_at=now() WHERE id=$1 AND status NOT IN ('finished','failed','cancelled')",[j.id]);res.json({ok:true,status:'cancelled'})});
   return router;
 }
+async function startMissionWorker(pool){
+  let busy=false;
+  setInterval(async()=>{
+    if(busy)return; busy=true;
+    const client=await pool.connect();
+    try{
+      await client.query('BEGIN');
+      const q=await client.query("SELECT id FROM missions WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1");
+      if(q.rows[0]){const id=q.rows[0].id;await client.query("UPDATE missions SET status='running',started_at=COALESCE(started_at,now()),updated_at=now() WHERE id=$1",[id]);await client.query('COMMIT');setImmediate(()=>runMission(pool,id).catch(e=>console.error('mission worker error',e)));}
+      else await client.query('COMMIT');
+    }catch(e){try{await client.query('ROLLBACK')}catch{} console.error('mission queue error',e)}finally{client.release();busy=false}
+  },2000);
+}
 async function runMission(pool,id){
-  await pool.query("UPDATE missions SET status='running',started_at=COALESCE(started_at,now()),updated_at=now() WHERE id=$1 AND status='queued'",[id]);
+  await pool.query("UPDATE missions SET status='running',started_at=COALESCE(started_at,now()),updated_at=now() WHERE id=$1 AND status IN ('queued','running')",[id]);
   const tasks=(await pool.query("SELECT * FROM mission_tasks WHERE mission_id=$1 AND status='queued' ORDER BY priority DESC,created_at",[id])).rows;
   for(const t of tasks){
     const current=(await pool.query('SELECT status FROM missions WHERE id=$1',[id])).rows[0];if(!current||current.status==='cancelled')break;
@@ -82,4 +95,4 @@ async function runMission(pool,id){
   await pool.query('UPDATE missions SET status=$2,result=$3,finished_at=CASE WHEN $2 IN (\'finished\',\'failed\',\'blocked\') THEN now() ELSE finished_at END,updated_at=now() WHERE id=$1',[id,status,JSON.stringify({failed,blocked})]);
   await emit(pool,id,null,'mission.completed',{status,failed,blocked});
 }
-module.exports={AGENTS,parseCommand,createRouter,runMission};
+module.exports={AGENTS,parseCommand,createRouter,runMission,startMissionWorker};
