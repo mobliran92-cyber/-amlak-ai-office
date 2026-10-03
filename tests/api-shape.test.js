@@ -25,3 +25,15 @@ test('command center is Pro gated in UI',()=>{
   assert.ok(s.includes("me.subscription_tier==='pro'"));
   assert.ok(s.includes("/api/subscription"));
 });
+
+test('all server-side JavaScript parses',()=>{
+  const {execFileSync}=require('child_process');
+  for(const f of ['server.js','foundation.js','agents.js','service-catalog.js','media-studio.js','maintenance-agent.js','payment-gateway.js','agent-catalog.js']) execFileSync(process.execPath,['--check',require('path').join(__dirname,'..',f)],{stdio:'pipe'});
+});
+test('resilience boundaries are present',()=>{
+  const s=fs.readFileSync(require('path').join(__dirname,'..','server.js'),'utf8');
+  assert.ok(s.includes("/api/offline/sync"));
+  assert.ok(s.includes("/api/billing"));
+  const p=fs.readFileSync(require('path').join(__dirname,'..','package.json'),'utf8');
+  assert.ok(p.includes("connect-pg-simple"));
+});
