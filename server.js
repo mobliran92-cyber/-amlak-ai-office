@@ -125,19 +125,35 @@ app.get('/api/health',async(req,res)=>{try{await pool.query('SELECT 1');res.json
 app.get('/api/property-types',(req,res)=>res.json(PROPERTY_TYPES));
 
 app.post('/api/offline/sync',auth,async(req,res)=>{
- const x=req.body||{},allowed=['POST /api/properties','PATCH /api/properties/:id','POST /api/clients','PATCH /api/clients/:id','POST /api/followups','PATCH /api/followups/:id','DELETE /api/followups/:id'];
- const route=String(x.method||'GET').toUpperCase()+' '+String(x.path||'');
- const ok=allowed.some(pattern=>pattern===route||((pattern.includes('/:id'))&&new RegExp('^'+pattern.replace('/:id','/\\\\d+')+'async(req,res)=>{
-  const email=clean(req.body?.email),password=String(req.body?.password||'');if(!email)return res.status(400).json({error:'ایمیل را وارد کنید'});
-  const adminEmail=clean(process.env.ADMIN_EMAIL);let u=store.staff.find(x=>String(x.email||'').toLowerCase()===email.toLowerCase());
-  if(!u&&adminEmail&&email.toLowerCase()===adminEmail.toLowerCase()){u={id:next('staff'),name:'مدیر دفتر',email:adminEmail,password_hash:null,role:'admin',active:true,created_at:now()};store.staff.push(u);await persist()}
-  if(!u)return res.status(401).json({error:'حساب کاربری پیدا نشد'});if(!u.active)return res.status(401).json({error:'حساب فعال نیست'});
-  const envPass=process.env.ADMIN_PASSWORD?String(process.env.ADMIN_PASSWORD):null;
-  if(!u.password_hash){if(u.role==='admin'&&envPass&&password===envPass){u.password_hash=bcrypt.hashSync(envPass,12);await persist()}else return res.status(401).json({error:'رمز عبور تنظیم نشده یا اشتباه است'})}
-  else if(!password||!bcrypt.compareSync(password,u.password_hash))return res.status(401).json({error:'رمز عبور اشتباه است'});
-  const sub=(await pool.query('SELECT tier,status,current_period_end FROM subscriptions WHERE user_id=$1',[u.id])).rows[0];
-  const tier=u.role==='admin'?'enterprise':(sub?.status==='active'?sub.tier:'free');
-  req.session.user={id:u.id,name:u.name,email:u.email,role:u.role,subscription_tier:tier,account_type:sub?.account_type||'consumer'};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
+ const x=req.body||{};
+ const allowed=[
+  {method:'POST',test:p=>p==='/api/properties'},
+  {method:'PATCH',test:p=>/^\/api\/properties\/\d+$/.test(p)},
+  {method:'POST',test:p=>p==='/api/clients'},
+  {method:'PATCH',test:p=>/^\/api\/clients\/\d+$/.test(p)},
+  {method:'POST',test:p=>p==='/api/followups'},
+  {method:'PATCH',test:p=>/^\/api\/followups\/\d+$/.test(p)},
+  {method:'DELETE',test:p=>/^\/api\/followups\/\d+$/.test(p)}
+ ];
+ const method=String(x.method||'GET').toUpperCase(),path=String(x.path||'');
+ if(!allowed.some(v=>v.method===method&&v.test(path)))return res.status(400).json({error:'OFFLINE_ROUTE_NOT_ALLOWED'});
+ const key=String(x.idempotency_key||'');if(!key)return res.status(400).json({error:'IDEMPOTENCY_REQUIRED'});
+ const prev=await pool.query('SELECT response FROM idempotency_keys WHERE key=$1 AND user_id=$2',[key,req.session.user.id]);
+ if(prev.rows[0])return res.json(prev.rows[0].response);
+ return res.status(501).json({error:'OFFLINE_SYNC_ADAPTER_PENDING',route:method+' '+path});
+});
+
+app.post('/api/login',async(req,res)=>{
+ const email=clean(req.body?.email),password=String(req.body?.password||'');if(!email)return res.status(400).json({error:'ایمیل را وارد کنید'});
+ const adminEmail=clean(process.env.ADMIN_EMAIL);let u=store.staff.find(x=>String(x.email||'').toLowerCase()===email.toLowerCase());
+ if(!u&&adminEmail&&email.toLowerCase()===adminEmail.toLowerCase()){u={id:next('staff'),name:'مدیر دفتر',email:adminEmail,password_hash:null,role:'admin',active:true,created_at:now()};store.staff.push(u);await persist()}
+ if(!u)return res.status(401).json({error:'حساب کاربری پیدا نشد'});if(!u.active)return res.status(401).json({error:'حساب فعال نیست'});
+ const envPass=process.env.ADMIN_PASSWORD?String(process.env.ADMIN_PASSWORD):null;
+ if(!u.password_hash){if(u.role==='admin'&&envPass&&password===envPass){u.password_hash=bcrypt.hashSync(envPass,12);await persist()}else return res.status(401).json({error:'رمز عبور تنظیم نشده یا اشتباه است'})}
+ else if(!password||!bcrypt.compareSync(password,u.password_hash))return res.status(401).json({error:'رمز عبور اشتباه است'});
+ const sub=(await pool.query('SELECT tier,status,current_period_end,account_type FROM subscriptions WHERE user_id=$1',[u.id])).rows[0];
+ const tier=u.role==='admin'?'enterprise':(sub?.status==='active'?sub.tier:'free');
+ req.session.user={id:u.id,name:u.name,email:u.email,role:u.role,subscription_tier:tier,account_type:sub?.account_type||'consumer'};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
 });
 app.post('/api/logout',async(req,res)=>{const u=req.session.user;req.session.destroy(async()=>{if(u){store.activities.push({id:next('activities'),user_id:u.id,user_name:u.name,action:'logout',entity:'session',entity_id:u.id,details:'خروج',created_at:now()});await persist()}res.json({ok:true})})});
 app.get('/api/me',auth,(req,res)=>res.json(req.session.user));
