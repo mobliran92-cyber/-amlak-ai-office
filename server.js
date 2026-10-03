@@ -259,12 +259,7 @@ app.use(express.static(path.join(__dirname,'public')));
 app.use('/media',express.static(LOCAL_MEDIA_DIR,{maxAge:'7d',immutable:true}));
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public/index.html')));
 (async()=>{try{await ensureTables();store=await load();await init();app.listen(PORT,'0.0.0.0',()=>{startMissionWorker(pool);startMaintenanceAgent(pool);console.log(`Amlak AI Office v${SCHEMA_VERSION} running on ${PORT}`)})}catch(e){console.error(e);process.exit(1)}})();
-).test(route)));
- if(!ok)return res.status(400).json({error:'OFFLINE_ROUTE_NOT_ALLOWED'});
- const key=String(x.idempotency_key||'');if(!key)return res.status(400).json({error:'IDEMPOTENCY_REQUIRED'});
- const prev=await pool.query('SELECT response FROM idempotency_keys WHERE key=$1 AND user_id=$2',[key,req.session.user.id]);if(prev.rows[0])return res.json(prev.rows[0].response);
- return res.status(501).json({error:'OFFLINE_SYNC_ADAPTER_PENDING',route});
-});
+
 app.post('/api/login',async(req,res)=>{
   const email=clean(req.body?.email),password=String(req.body?.password||'');if(!email)return res.status(400).json({error:'ایمیل را وارد کنید'});
   const adminEmail=clean(process.env.ADMIN_EMAIL);let u=store.staff.find(x=>String(x.email||'').toLowerCase()===email.toLowerCase());
