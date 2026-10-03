@@ -1,4 +1,5 @@
 const crypto=require('crypto');
+const {SERVICES}=require('./service-catalog');
 
 const TIERS={FREE:'free',PLUS:'plus',PRO:'pro',OFFICE:'office',ENTERPRISE:'enterprise'};
 const TIER_RANK={free:0,plus:1,pro:2,office:3,enterprise:4};
@@ -130,20 +131,7 @@ async function ensureFoundation(pool){
   for(const x of [
     ['mission_engine',true],['pro_command_center',true],['lead_scout',false],['ai_self_healing',false]
   ]) await pool.query('INSERT INTO feature_flags(key,enabled) VALUES($1,$2) ON CONFLICT(key) DO NOTHING',x);
-  const serviceCatalog=[
-    ['property-management','مدیریت کامل املاک','core'],['property-search','جستجوی هوشمند ملک','core'],['ai-advisor','مشاور هوش مصنوعی املاک','pro'],
-    ['property-intelligence','هوش ملک و قیمت','pro'],['matching','مچینگ هوشمند','pro'],['trust-engine','Trust Engine','pro'],
-    ['location-intelligence','هوش موقعیت مکانی','pro'],['measurement','نقشه و اندازه‌گیری','pro'],['project-studio','تبدیل ملک به پروژه','pro'],
-    ['construction-studio','AI Construction Studio','pro'],['design-studio','AI Design Studio','pro'],['investment-intelligence','هوش سرمایه‌گذاری','pro'],
-    ['content-studio','AI Content Studio','pro'],['crm','CRM حرفه‌ای','core'],['customer-intelligence','هوش مشتری','pro'],
-    ['communications','ارتباطات و پیام‌رسانی','core'],['documents','مدیریت اسناد','pro'],['contracts','قرارداد دیجیتال','office'],
-    ['transactions','مدیریت معاملات','office'],['subscriptions','اشتراک و پرداخت','office'],['notifications','مرکز اعلان','core'],
-    ['reports','داشبورد و گزارش','core'],['integrations','اتصالات و API','office'],['media','مدیریت رسانه','core'],
-    ['learning','یادگیری از رفتار و نتیجه','pro'],['lead-scout','Lead Scout','pro'],['market-intelligence','هوش بازار','pro'],
-    ['developer-tools','Developer / API Studio','office'],['system-qa','QA و Self-Healing','enterprise'],['legal-ai','AI حقوقی','enterprise'],
-    ['finance-ai','تأمین مالی و وام','enterprise'],['global-data','داده بازار جهانی','enterprise'],['digital-twin','Digital Twin / 3D / VR / AR','enterprise']
-  ];
-  for(const x of serviceCatalog) await pool.query('INSERT INTO service_catalog(id,name,required_tier) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING',x);
+  for(const x of SERVICES) await pool.query('INSERT INTO service_catalog(id,name,required_tier) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,required_tier=EXCLUDED.required_tier,updated_at=now()',[x.id,x.title,x.tier]);
 
 
 
