@@ -96,6 +96,18 @@ async function ensureFoundation(pool){
   await pool.query('CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status,created_at)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_ai_runs_mission ON ai_runs(mission_id,created_at DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status,available_at)');
+  for(const x of [
+    ['public-web','Public web adapter','source','pro'],
+    ['divar','Divar connector placeholder','source','pro'],
+    ['sheypoor','Sheypoor connector placeholder','source','pro'],
+    ['meta-public','Meta public API connector placeholder','source','pro'],
+    ['maps','Maps/location provider','location','free'],
+    ['ai-provider','AI model gateway','ai','pro']
+  ]) await pool.query('INSERT INTO tools_registry(id,name,kind,required_tier) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING',x);
+  for(const x of [
+    ['mission_engine',true],['pro_command_center',true],['lead_scout',false],['ai_self_healing',false]
+  ]) await pool.query('INSERT INTO feature_flags(key,enabled) VALUES($1,$2) ON CONFLICT(key) DO NOTHING',x);
+
 
 }
 
