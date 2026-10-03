@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: amlak-ai-office
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: amlak-ai-office-db
+          property: connectionString
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AWS_ENDPOINT_URL_S3
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        value: amlak-media
+      - key: AWS_PUBLIC_BASE_URL
+        sync: false
+
+databases:
+  - name: amlak-ai-office-db
+    plan: free
+    region: frankfurt
+    databaseName: amlak_ai_office
+    user: amlak_ai_office
