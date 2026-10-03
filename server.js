@@ -8,6 +8,7 @@ const multer=require('multer');
 const sharp=require('sharp');
 const {S3Client,PutObjectCommand,DeleteObjectCommand}=require('@aws-sdk/client-s3');
 const {createRouter: createAgentRouter}=require('./agents');
+const {ensureFoundation}=require('./foundation');
 
 const app=express();
 const PORT=Number(process.env.PORT||10000);
@@ -107,6 +108,7 @@ function visibleForUser(items,req){return req.session.user.role==='admin'?items:
 function publicUser(x){const {password_hash,...safe}=x;return safe}
 
 async function init(){
+  await ensureFoundation(pool);
   const email=clean(process.env.ADMIN_EMAIL);
   if(email&&!store.staff.some(x=>String(x.email||'').toLowerCase()===email.toLowerCase())){
     store.staff.push({id:next('staff'),name:'مدیر دفتر',email,password_hash:null,role:'admin',active:true,created_at:now()});
@@ -124,7 +126,9 @@ app.post('/api/login',async(req,res)=>{
   const envPass=process.env.ADMIN_PASSWORD?String(process.env.ADMIN_PASSWORD):null;
   if(!u.password_hash){if(u.role==='admin'&&envPass&&password===envPass){u.password_hash=bcrypt.hashSync(envPass,12);await persist()}else return res.status(401).json({error:'رمز عبور تنظیم نشده یا اشتباه است'})}
   else if(!password||!bcrypt.compareSync(password,u.password_hash))return res.status(401).json({error:'رمز عبور اشتباه است'});
-  req.session.user={id:u.id,name:u.name,email:u.email,role:u.role};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
+  const sub=(await pool.query('SELECT tier,status,current_period_end FROM subscriptions WHERE user_id=$1',[u.id])).rows[0];
+  const tier=u.role==='admin'?'enterprise':(sub?.status==='active'?sub.tier:'free');
+  req.session.user={id:u.id,name:u.name,email:u.email,role:u.role,subscription_tier:tier};await audit(req,'login','session',u.id,'ورود به سیستم');res.json(req.session.user);
 });
 app.post('/api/logout',async(req,res)=>{const u=req.session.user;req.session.destroy(async()=>{if(u){store.activities.push({id:next('activities'),user_id:u.id,user_name:u.name,action:'logout',entity:'session',entity_id:u.id,details:'خروج',created_at:now()});await persist()}res.json({ok:true})})});
 app.get('/api/me',auth,(req,res)=>res.json(req.session.user));
@@ -205,6 +209,8 @@ app.get('/api/backup',admin,(req,res)=>{res.setHeader('Content-Disposition',`att
 app.post('/api/restore',admin,async(req,res)=>{const d=req.body;if(!d||!Array.isArray(d.staff)||!Array.isArray(d.properties)||!Array.isArray(d.clients)||!Array.isArray(d.followups))return res.status(400).json({error:'پشتیبان نامعتبر است'});await backup('pre-restore');store=migrate(d);await persist();res.json({ok:true,version:SCHEMA_VERSION})});
 app.get('/api/share',admin,(req,res)=>{const host=`${req.protocol}://${req.get('host')}`;res.json({url:host,login_url:`${host}/#login`,note:'دسترسی فقط با حساب فعال سیستم ممکن است.'})});
 
+app.get('/api/subscription',auth,async(req,res)=>{const s=(await pool.query('SELECT tier,status,current_period_end FROM subscriptions WHERE user_id=$1',[req.session.user.id])).rows[0]||{tier:req.session.user.role==='admin'?'enterprise':'free',status:'active'};res.json({...s,tier:req.session.user.role==='admin'?'enterprise':s.tier})});
+app.patch('/api/subscription',admin,async(req,res)=>{const userId=Number(req.body?.user_id),tier=String(req.body?.tier||'free').toLowerCase();if(!Number.isInteger(userId)||!['free','pro','office','enterprise'].includes(tier))return res.status(400).json({error:'SUBSCRIPTION_INVALID'});await pool.query('INSERT INTO subscriptions(user_id,tier,status,updated_at) VALUES($1,$2,$3,now()) ON CONFLICT(user_id) DO UPDATE SET tier=EXCLUDED.tier,status=EXCLUDED.status,updated_at=now()',[userId,tier,'active']);res.json({ok:true,user_id:userId,tier,status:'active'})});
 app.use('/api/agents',auth,createAgentRouter({pool,isAdmin:(req)=>req.session.user?.role==='admin'}));
 
 app.use(express.static(path.join(__dirname,'public')));
