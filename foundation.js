@@ -70,6 +70,33 @@ async function ensureFoundation(pool){
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_queue ON mission_tasks(status,priority DESC,created_at ASC)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_mission ON mission_tasks(mission_id,created_at)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_events_mission ON mission_events(mission_id,created_at DESC)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS tools_registry(
+    id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL,enabled BOOLEAN NOT NULL DEFAULT true,
+    required_tier TEXT NOT NULL DEFAULT 'pro',config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS feature_flags(
+    key TEXT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT false,config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS approvals(
+    id UUID PRIMARY KEY,user_id BIGINT NOT NULL,mission_id UUID REFERENCES missions(id) ON DELETE CASCADE,
+    task_id UUID REFERENCES mission_tasks(id) ON DELETE CASCADE,kind TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,decision JSONB,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decided_at TIMESTAMPTZ)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS ai_runs(
+    id UUID PRIMARY KEY,mission_id UUID REFERENCES missions(id) ON DELETE SET NULL,task_id UUID REFERENCES mission_tasks(id) ON DELETE SET NULL,
+    provider TEXT,model TEXT,request JSONB,result JSONB,status TEXT NOT NULL,latency_ms INTEGER,tokens_in INTEGER,tokens_out INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS idempotency_keys(
+    key TEXT PRIMARY KEY,user_id BIGINT NOT NULL,operation TEXT NOT NULL,response JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),expires_at TIMESTAMPTZ)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS outbox_events(
+    id BIGSERIAL PRIMARY KEY,event_type TEXT NOT NULL,payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),processed_at TIMESTAMPTZ)`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status,created_at)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_ai_runs_mission ON ai_runs(mission_id,created_at DESC)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status,available_at)');
+
 }
 
 function tierRank(tier){return TIER_RANK[String(tier||'free').toLowerCase()]??0;}
