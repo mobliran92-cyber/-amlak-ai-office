@@ -59,7 +59,6 @@ function createRouter(opts){
       await client.query('COMMIT');
     }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
     emit(pool,id,null,'mission.created',{agent:task.agent,action:task.action});
-    setImmediate(()=>runMission(pool,id).catch(e=>console.error('mission worker error',e)));
     res.status(202).json({mission_id:id,status:'running',agent:task.agent,action:task.action,plan:planned});
   });
   router.post('/missions/:id/cancel',async(req,res)=>{const m=(await pool.query('SELECT * FROM missions WHERE id=$1',[req.params.id])).rows[0];if(!m)return res.status(404).json({error:'MISSION_NOT_FOUND'});if(!isAdmin(req)&&Number(m.user_id)!==Number(req.session.user.id))return res.status(403).json({error:'FORBIDDEN'});await pool.query("UPDATE missions SET status='cancelled',finished_at=now(),updated_at=now() WHERE id=$1 AND status NOT IN ('finished','failed','cancelled')",[m.id]);await pool.query("UPDATE mission_tasks SET status='cancelled',updated_at=now() WHERE mission_id=$1 AND status IN ('queued','running')",[m.id]);await emit(pool,m.id,null,'mission.cancelled');res.json({ok:true,status:'cancelled'})});
