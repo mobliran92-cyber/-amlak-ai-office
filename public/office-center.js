@@ -35,6 +35,7 @@
   const callApi=(url,opt={})=>typeof api==='function'?api(url,opt):fetch(url,{headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'خطا');return d});
 
   window.officeCenter=async function(){
+    if(window.__aoTimer){clearInterval(window.__aoTimer);window.__aoTimer=null}
     if(typeof active==='function')active('officeCenter');
     const view=document.getElementById('view'); if(!view)return;
     view.innerHTML='<div class="ao"><div class="ao-empty">در حال آماده‌سازی مرکز فرمان...</div></div>';
@@ -108,7 +109,7 @@
       }catch(e){result.innerHTML='<b>خطا</b><pre>'+escAO(e.message)+'</pre>'}
       finally{send.disabled=false;send.textContent='اجرا'}
     };
-    send.onclick=run;setInterval(async()=>{try{const ms=await callApi('/api/agents/missions');const box=document.getElementById('aoJobs');if(!box)return;box.innerHTML=(Array.isArray(ms)?ms.slice(0,8):[]).map(x=>`<div class="ao-job" data-mission="${escAO(x.id)}"><div class="ao-job-row"><strong>${escAO(x.command)}</strong><span class="ao-badge">${escAO(x.status)}</span></div><small>مأموریت · ${escAO(x.updated_at||x.created_at||'')}</small></div>`).join('')||'<div class="ao-empty">مأموریتی ثبت نشده.</div>';}catch{}} ,5000);document.getElementById('aoJobs').onclick=async(e)=>{const card=e.target.closest('[data-mission]');if(!card)return;try{const d=await callApi('/api/agents/missions/'+card.dataset.mission);result.className='ao-result show';result.innerHTML='<b>جزئیات مأموریت</b><pre>'+escAO(JSON.stringify(d,null,2))+'</pre>'}catch(err){result.className='ao-result show';result.innerHTML='<b>خطا</b><pre>'+escAO(err.message)+'</pre>'}};input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')run()});
+    send.onclick=run;window.__aoTimer=setInterval(async()=>{try{const ms=await callApi('/api/agents/missions');const box=document.getElementById('aoJobs');if(!box)return;box.innerHTML=(Array.isArray(ms)?ms.slice(0,8):[]).map(x=>`<div class="ao-job" data-mission="${escAO(x.id)}"><div class="ao-job-row"><strong>${escAO(x.command)}</strong><span class="ao-badge">${escAO(x.status)}</span></div><small>مأموریت · ${escAO(x.updated_at||x.created_at||'')}</small></div>`).join('')||'<div class="ao-empty">مأموریتی ثبت نشده.</div>';}catch{}} ,5000);document.getElementById('aoJobs').onclick=async(e)=>{const card=e.target.closest('[data-mission]');if(!card)return;try{const d=await callApi('/api/agents/missions/'+card.dataset.mission);result.className='ao-result show';result.innerHTML='<b>جزئیات مأموریت</b><pre>'+escAO(JSON.stringify(d,null,2))+'</pre>'}catch(err){result.className='ao-result show';result.innerHTML='<b>خطا</b><pre>'+escAO(err.message)+'</pre>'}};input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')run()});
     view.querySelectorAll('.ao-chip').forEach(b=>b.onclick=()=>{input.value=b.dataset.cmd;input.focus()});
     document.getElementById('aoRefresh').onclick=()=>window.officeCenter();
   };
