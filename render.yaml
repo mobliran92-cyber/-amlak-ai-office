@@ -26,6 +26,18 @@ services:
         sync: false
       - key: AI_MODEL
         sync: false
+      - key: AI_MEDIA_BASE_URL
+        sync: false
+      - key: AI_MEDIA_API_KEY
+        sync: false
+      - key: AI_MEDIA_MODEL
+        sync: false
+      - key: AI_3D_BASE_URL
+        sync: false
+      - key: AI_3D_API_KEY
+        sync: false
+      - key: AI_3D_MODEL
+        sync: false
       - key: AWS_ENDPOINT_URL_S3
         sync: false
       - key: AWS_ACCESS_KEY_ID
