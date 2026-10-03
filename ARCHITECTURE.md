@@ -92,3 +92,6 @@ The long-term deployment topology is:
 - conflict/version rules for records edited in both regions.
 
 A true disconnected Iran deployment requires a local database/object-storage/AI-optional stack; it cannot be achieved by a browser cache alone. The current repository contains the PWA/offline foundation and provider boundaries, while the full disconnected local server package remains a production hardening phase.
+
+
+CI gate: syntax, regression and resilience checks run on main changes.
