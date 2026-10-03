@@ -116,4 +116,5 @@ async function runPropertyMatch(){const id=$('mp').value;if(!id)return toast('ی
 function renderMatch(list,kind){$('matchResults').innerHTML=`<div class="grid cards">${list.map(x=>{const price=x.price||x.deposit||x.rent;const label=kind==='p'?(x.title||x.property_subtype||'ملک #'+x.id):x.name;const sub=kind==='p'?(x.city||'')+' '+(x.neighborhood||''):(x.purpose||'')+(x.phone?' · '+x.phone:'');return `<div class="card"><div class="toolbar"><h2 style="margin:0">${esc(label)}</h2><span class="pill gold" style="margin-right:auto">امتیاز تطابق ${x.score}%</span></div><p class="muted">${esc(sub)}</p>${price?`<p class="gold">${fmtPrice(price)}</p>`:''}${x.why?.length?`<p class="muted">دلایل تطابق: ${x.why.join('، ')}</p>`:''}${kind==='p'?`<button class="btn dark" onclick="detail(${x.id})">مشاهده ملک</button>`:''}</div>`}).join('')||'<p class="muted">نتیجه‌ای پیدا نشد.</p>'}</div>`}
 boot();
 </script>
+<script src="/office-center.js"></script>
 </body></html>
