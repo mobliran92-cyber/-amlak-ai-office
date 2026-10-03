@@ -25,7 +25,7 @@ The UI is a stable shell. New capabilities are added as agents/tools/modules beh
 - Observability, retries, idempotency and rollback
 
 ## Scale
-The data model must be able to move from hundreds to millions of users without replacing the mission contract. The current legacy `app_state` store is transitional and must not receive new high-volume domain entities.
+The data model must be able to move from hundreds to millions of users without replacing the mission contract. The current legacy `app_state` store is transitional and must not receive new high-volume domain entities. Sessions are PostgreSQL-backed so multiple application instances can share authentication state.
 
 ## Pro boundary
 The Command Center and mission execution are server-side gated. Hiding a button is not an authorization mechanism.
