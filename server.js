@@ -1,5 +1,6 @@
 const express=require('express');
 const session=require('express-session');
+const pgSession=require('connect-pg-simple')(session);
 const bcrypt=require('bcryptjs');
 const path=require('path');
 const crypto=require('crypto');
@@ -103,7 +104,7 @@ async function audit(req,action,entity,entityId,details=''){
 }
 app.use(express.json({limit:'20mb'}));app.use(express.urlencoded({extended:true}));
 app.set('trust proxy',1);
-app.use(session({secret:process.env.SESSION_SECRET||'change-this-secret',resave:false,saveUninitialized:false,
+app.use(session({store:new pgSession({pool,tableName:'user_sessions',createTableIfMissing:true}),secret:process.env.SESSION_SECRET||'change-this-secret',resave:false,saveUninitialized:false,
   cookie:{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:14*86400000}}));
 function auth(req,res,next){if(!req.session.user)return res.status(401).json({error:'AUTH_REQUIRED'});next()}
 function admin(req,res,next){if(req.session.user?.role!=='admin')return res.status(403).json({error:'ADMIN_REQUIRED'});next()}
