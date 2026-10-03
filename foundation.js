@@ -70,6 +70,9 @@ async function ensureFoundation(pool){
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_queue ON mission_tasks(status,priority DESC,created_at ASC)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_mission ON mission_tasks(mission_id,created_at)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_events_mission ON mission_events(mission_id,created_at DESC)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS service_catalog(
+    id TEXT PRIMARY KEY,name TEXT NOT NULL,required_tier TEXT NOT NULL DEFAULT 'free',enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   await pool.query(`CREATE TABLE IF NOT EXISTS tools_registry(
     id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL,enabled BOOLEAN NOT NULL DEFAULT true,
     required_tier TEXT NOT NULL DEFAULT 'pro',config JSONB NOT NULL DEFAULT '{}'::jsonb,
