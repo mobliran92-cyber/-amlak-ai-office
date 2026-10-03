@@ -40,17 +40,17 @@
     view.innerHTML='<div class="ao"><div class="ao-empty">در حال آماده‌سازی مرکز فرمان...</div></div>';
     let agents=[],jobs=[];
     try{
-      const [a,j]=await Promise.all([callApi('/api/agents'),callApi('/api/agents/jobs')]);
+      const [a,j]=await Promise.all([callApi('/api/agents'),callApi('/api/agents/missions')]);
       agents=a.agents||[];jobs=Array.isArray(j)?j:[];
     }catch(e){
       view.innerHTML='<div class="ao-card"><b>مرکز فرمان</b><p class="ao-sub">'+escAO(e.message)+'</p></div>';return;
     }
     const agentMap=Object.fromEntries(agents.map(x=>[x.id,x]));
     const jobHTML=jobs.slice(0,8).map(j=>`
-      <div class="ao-job">
+      <div class="ao-job" data-mission="${escAO(j.id)}">
         <div class="ao-job-row"><strong>${escAO(j.command)}</strong><span class="ao-badge">${escAO(j.status)}</span></div>
-        <small>${escAO(agentMap[j.agent_id]?.name||j.agent_id)} · ${escAO(j.action||'')}</small>
-      </div>`).join('')||'<div class="ao-empty">هنوز کاری از مرکز فرمان ثبت نشده است.</div>';
+        <small>مأموریت · ${escAO(j.created_at||'')}</small>
+      </div>`).join('')||'<div class="ao-empty">هنوز مأموریتی از مرکز فرمان ثبت نشده است.</div>';
     const agentHTML=agents.map(a=>`
       <div class="ao-agent"><span class="ao-agent-tag">● آماده</span><strong>${escAO(a.name)}</strong><small>${escAO(a.role)}</small></div>`).join('');
     view.innerHTML=`
@@ -104,11 +104,11 @@
       try{
         const r=await callApi('/api/agents/command',{method:'POST',body:JSON.stringify({command})});
         result.innerHTML='<b>مأموریت ثبت شد</b><pre>'+escAO(JSON.stringify(r.result||r,null,2))+'</pre>';
-        const j=await callApi('/api/agents/jobs');document.getElementById('aoJobs').innerHTML=(Array.isArray(j)?j.slice(0,8):[]).map(x=>`<div class="ao-job"><div class="ao-job-row"><strong>${escAO(x.command)}</strong><span class="ao-badge">${escAO(x.status)}</span></div><small>${escAO(agentMap[x.agent_id]?.name||x.agent_id)} · ${escAO(x.action||'')}</small></div>`).join('')||'<div class="ao-empty">مأموریتی ثبت نشده.</div>';
+        const j=await callApi('/api/agents/missions');document.getElementById('aoJobs').innerHTML=(Array.isArray(j)?j.slice(0,8):[]).map(x=>`<div class="ao-job" data-mission="${escAO(x.id)}"><div class="ao-job-row"><strong>${escAO(x.command)}</strong><span class="ao-badge">${escAO(x.status)}</span></div><small>مأموریت · ${escAO(x.created_at||'')}</small></div>`).join('')||'<div class="ao-empty">مأموریتی ثبت نشده.</div>';
       }catch(e){result.innerHTML='<b>خطا</b><pre>'+escAO(e.message)+'</pre>'}
       finally{send.disabled=false;send.textContent='اجرا'}
     };
-    send.onclick=run;input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')run()});
+    send.onclick=run;setInterval(async()=>{try{const ms=await callApi('/api/agents/missions');const box=document.getElementById('aoJobs');if(!box)return;box.innerHTML=(Array.isArray(ms)?ms.slice(0,8):[]).map(x=>`<div class="ao-job" data-mission="${escAO(x.id)}"><div class="ao-job-row"><strong>${escAO(x.command)}</strong><span class="ao-badge">${escAO(x.status)}</span></div><small>مأموریت · ${escAO(x.updated_at||x.created_at||'')}</small></div>`).join('')||'<div class="ao-empty">مأموریتی ثبت نشده.</div>';}catch{}} ,5000);document.getElementById('aoJobs').onclick=async(e)=>{const card=e.target.closest('[data-mission]');if(!card)return;try{const d=await callApi('/api/agents/missions/'+card.dataset.mission);result.className='ao-result show';result.innerHTML='<b>جزئیات مأموریت</b><pre>'+escAO(JSON.stringify(d,null,2))+'</pre>'}catch(err){result.className='ao-result show';result.innerHTML='<b>خطا</b><pre>'+escAO(err.message)+'</pre>'}};input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')run()});
     view.querySelectorAll('.ao-chip').forEach(b=>b.onclick=()=>{input.value=b.dataset.cmd;input.focus()});
     document.getElementById('aoRefresh').onclick=()=>window.officeCenter();
   };
