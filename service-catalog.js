@@ -21,7 +21,7 @@ const SERVICES=[
 {id:'notifications',title:'مرکز اعلان',group:'ارتباطات',tier:'pro',actions:['push','email','sms','whatsapp','alerts']},
 {id:'reports',title:'داشبورد و گزارش',group:'دفتر',tier:'pro',actions:['sales','revenue','agents','market','ai']},
 {id:'integrations',title:'اتصال به سرویس‌ها',group:'اتصال',tier:'office',actions:['api','import','export','webhook']},
-{id:'media',title:'Media & Virtual Tour',group:'رسانه',tier:'pro',actions:['photo','video','360','tour','render']},
+{id:'media',title:'Media & Virtual Tour',group:'رسانه',tier:'plus',actions:['photo','video','360','tour','render']},
 {id:'lead-scout',title:'Lead Scout',group:'هوش مصنوعی',tier:'pro',actions:['scan','dedupe','track','report']},
 {id:'market',title:'Market Intelligence',group:'تحلیل',tier:'pro',actions:['scan','trend','area_report','opportunity']},
 {id:'qa',title:'AI QA & Self-Healing',group:'سیستم',tier:'office',actions:['health','test','propose_fix','approval','rollback']},
