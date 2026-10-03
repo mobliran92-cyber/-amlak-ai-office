@@ -7,6 +7,7 @@ const {Pool}=require('pg');
 const multer=require('multer');
 const sharp=require('sharp');
 const {S3Client,PutObjectCommand,DeleteObjectCommand}=require('@aws-sdk/client-s3');
+const {createRouter: createAgentRouter}=require('./agents');
 
 const app=express();
 const PORT=Number(process.env.PORT||10000);
@@ -203,6 +204,8 @@ app.get('/api/dashboard',auth,(req,res)=>{const ps=visibleForUser(store.properti
 app.get('/api/backup',admin,(req,res)=>{res.setHeader('Content-Disposition',`attachment; filename="amlak-backup-${new Date().toISOString().slice(0,10)}.json"`);res.json(store)});
 app.post('/api/restore',admin,async(req,res)=>{const d=req.body;if(!d||!Array.isArray(d.staff)||!Array.isArray(d.properties)||!Array.isArray(d.clients)||!Array.isArray(d.followups))return res.status(400).json({error:'پشتیبان نامعتبر است'});await backup('pre-restore');store=migrate(d);await persist();res.json({ok:true,version:SCHEMA_VERSION})});
 app.get('/api/share',admin,(req,res)=>{const host=`${req.protocol}://${req.get('host')}`;res.json({url:host,login_url:`${host}/#login`,note:'دسترسی فقط با حساب فعال سیستم ممکن است.'})});
+
+app.use('/api/agents',auth,createAgentRouter({pool,isAdmin:(req)=>req.session.user?.role==='admin'}));
 
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public/index.html')));
