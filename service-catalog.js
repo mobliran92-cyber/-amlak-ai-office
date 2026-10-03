@@ -1,7 +1,7 @@
 const SERVICES=[
 {id:'property',title:'مدیریت کامل ملک',group:'ملک',tier:'free',actions:['create','view','edit','delete','archive','duplicate','publish','refresh']},
 {id:'search',title:'جست‌وجوی هوشمند',group:'جست‌وجو',tier:'free',actions:['search','filter','map','save','alert']},
-{id:'advisor',title:'مشاور AI املاک',group:'هوش مصنوعی',tier:'pro',actions:['analyze','compare','recommend','negotiate']},
+{id:'advisor',title:'مشاور AI املاک',group:'هوش مصنوعی',tier:'plus',actions:['analyze','compare','recommend','negotiate']},
 {id:'matching',title:'تطبیق هوشمند',group:'هوش مصنوعی',tier:'pro',actions:['match','rank','explain']},
 {id:'property-intel',title:'هوش ملک و قیمت',group:'تحلیل',tier:'pro',actions:['valuation','price_check','risk','history']},
 {id:'trust',title:'Trust Engine',group:'اعتماد',tier:'pro',actions:['verify','score','flag','provenance']},
@@ -16,7 +16,7 @@ const SERVICES=[
 {id:'customer-intel',title:'Customer Intelligence',group:'دفتر',tier:'pro',actions:['lead_score','intent','routing','followup']},
 {id:'communications',title:'ارتباطات',group:'ارتباطات',tier:'pro',actions:['chat','message','viewing','share']},
 {id:'documents',title:'مدیریت اسناد',group:'اسناد',tier:'pro',actions:['upload','extract','verify','version','compare']},
-{id:'contracts',title:'قرارداد دیجیتال',group:'معامله',tier:'office',actions:['create','version','sign','history']},
+{id:'contracts',title:'قرارداد دیجیتال',group:'معامله',tier:'pro',actions:['create','version','sign','history']},
 {id:'transactions',title:'مدیریت معامله',group:'معامله',tier:'office',actions:['sale','rent','presale','partnership','investment']},
 {id:'notifications',title:'مرکز اعلان',group:'ارتباطات',tier:'pro',actions:['push','email','sms','whatsapp','alerts']},
 {id:'reports',title:'داشبورد و گزارش',group:'دفتر',tier:'pro',actions:['sales','revenue','agents','market','ai']},
